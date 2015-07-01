@@ -1,0 +1,17 @@
+<!--
+This package provides a newer version of OMPL for ROS Hydro.  To differentiate this package from the
+existing ompl Catkin package, this package is named ompl_source, since it builds from source.  There
+are no additional modifications to the library.
+-->
+
+<package>
+  <name>ompl_source</name>
+  <version>1.0.0</version>
+  <description>Updated source package for OMPL</description>
+  <maintainer email="rluna@rice.edu">Ryan Luna</maintainer>
+
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+</package>
