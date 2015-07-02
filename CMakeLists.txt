@@ -6,6 +6,8 @@ if(NOT ${CMAKE_VERSION} VERSION_LESS 3.0.0)
 endif()
 project(ompl_source)
 
+find_package(catkin REQUIRED)
+
 # Barebones compilation only
 set(OMPL_EXTENSION_MORSE 0)
 set(OMPL_EXTENSION_OPENDE 0)
