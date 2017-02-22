@@ -1,21 +1,48 @@
 cmake_minimum_required(VERSION 2.8)
 if(NOT ${CMAKE_VERSION} VERSION_LESS 3.0.0)
-    cmake_policy(SET CMP0042 OLD)
+  cmake_policy(SET CMP0042 OLD)
 endif()
-project(ompl_source)
+project(ompl CXX C)
 
 find_package(catkin REQUIRED)
 
-if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
+# set the default build type
+if (NOT CMAKE_BUILD_TYPE)
+    # By default, use Release mode
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Type of build" FORCE)
+
+    # On 32bit architectures, use RelWithDebInfo
+    if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+        set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Type of build" FORCE)
+    endif()
 endif()
+
+
+# This shouldn't be necessary, but there has been trouble
+# with MSVC being set off, but MSVCXX ON.
+if(MSVC OR MSVC90 OR MSVC10)
+    set(MSVC ON)
+endif (MSVC OR MSVC90 OR MSVC10)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/ompl/CMakeModules")
 include(GNUInstallDirs)
+include(CompilerSettings)
 include(OMPLVersion)
+include(OMPLUtils)
 
 # OMPL include path
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/ompl/src")
+
+if(MSVC)
+    add_definitions(-DBOOST_ALL_NO_LIB)
+    add_definitions(-DBOOST_PROGRAM_OPTIONS_DYN_LINK)
+endif(MSVC)
+if(IS_ICPC)
+    set(Boost_USE_STATIC_LIBS ON CACHE STRING "Use statically linked Boost libraries")
+else(IS_ICPC)
+    # Ensure dynamic linking with boost unit_test_framework
+    add_definitions(-DBOOST_TEST_DYN_LINK)
+endif(IS_ICPC)
 
 # Do one quiet find_package on Boost to see if it is recent enough to
 # have the try_join_for call
@@ -46,6 +73,26 @@ if(${Boost_VERSION} LESS 105300)
   set(ODEINT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ompl/src/external")
   include_directories(SYSTEM "${ODEINT_INCLUDE_DIR}")
 endif()
+
+if(APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    include(GetPrerequisites)
+    get_prerequisites("${Boost_SYSTEM_LIBRARY}" _libs 0 0 "/" "")
+    set(CXXSTDLIB "")
+    foreach(_lib ${_libs})
+        if(_lib MATCHES "libc\\+\\+")
+            set(CXXSTDLIB "libc++")
+        elseif(_lib MATCHES "libstdc\\+\\+")
+            set(CXXSTDLIB "libstdc++")
+        endif()
+    endforeach()
+    if(CXXSTDLIB)
+        add_definitions(-stdlib=${CXXSTDLIB})
+    endif()
+endif()
+
+
+# pthread is sometimes needed, depending on OS / compiler
+find_package(Threads QUIET)
 
 # Barebones compilation only
 set(OMPL_EXTENSION_MORSE 0)
