@@ -98,6 +98,13 @@ install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/ompl/doc/markdown/FindOMPL.cmake"
 # pthread is sometimes needed, depending on OS / compiler
 find_package(Threads QUIET)
 
+find_package(Eigen3 QUIET)
+if (EIGEN3_FOUND)
+    set(OMPL_HAVE_EIGEN3 1)
+    include_directories("${EIGEN3_INCLUDE_DIR}")
+endif()
+
+
 # Barebones compilation only
 set(OMPL_EXTENSION_MORSE 0)
 set(OMPL_EXTENSION_OPENDE 0)
