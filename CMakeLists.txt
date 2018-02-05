@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
+cmake_policy(SET CMP0017 NEW)
 if(NOT ${CMAKE_VERSION} VERSION_LESS 3.0.0)
-  cmake_policy(SET CMP0042 OLD)
+    cmake_policy(SET CMP0042 NEW)
 endif()
 project(ompl CXX C)
 
@@ -17,6 +18,7 @@ if (NOT CMAKE_BUILD_TYPE)
   endif()
 endif()
 
+message(STATUS "Building ${CMAKE_BUILD_TYPE}")
 
 # This shouldn't be necessary, but there has been trouble
 # with MSVC being set off, but MSVCXX ON.
@@ -24,7 +26,9 @@ if(MSVC OR MSVC90 OR MSVC10)
   set(MSVC ON)
 endif (MSVC OR MSVC90 OR MSVC10)
 
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/ompl/CMakeModules")
+set(CMAKE_MODULE_PATH
+    "${CMAKE_MODULE_PATH}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ompl/CMakeModules")
 include(GNUInstallDirs)
 include(CompilerSettings)
 include(OMPLVersion)
@@ -46,64 +50,48 @@ endif(IS_ICPC)
 
 # Do one quiet find_package on Boost to see if it is recent enough to
 # have the try_join_for call
-find_package(Boost QUIET 1.50)
+find_package(Boost 1.54 COMPONENTS serialization filesystem system program_options REQUIRED)
+include_directories(${Boost_INCLUDE_DIR})
 
-# If Boost is not found at all, the check for version 1.50 below will die in
-# the most ungraceful manner because Boost_VERSION is not defined.  Define the
-# variable here for a more useful error.
-if (NOT ${Boost_FOUND})
-  set(Boost_VERSION 0)
+# Add support in Boost::Python for std::shared_ptr
+# This is a hack that replaces boost::shared_ptr related code with std::shared_ptr.
+# Proper support for std::shared_ptr was added in Boost 1.63.
+if(Boost_VERSION VERSION_LESS "106300")
+    include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/external")
 endif()
 
-# try_join_for requires the chrono library, so if we will use
-# try_join_for, we need to include the chrono component
-# Must recheck the Boost version, since update_bindings will re-run CMake
-# and this will pass for versions of Boost < 1.50
-if (${Boost_FOUND} AND ${Boost_VERSION} GREATER 104900) # Boost version is at least 1.50
-  # we're using chrono
-  find_package(Boost COMPONENTS date_time thread serialization filesystem system program_options unit_test_framework chrono REQUIRED)
-else()
-  # don't use chrono
-  find_package(Boost COMPONENTS date_time thread serialization filesystem system program_options unit_test_framework REQUIRED)
-endif()
-include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
-if(${Boost_VERSION} LESS 105300)
-  # Include bundled version of boost::odeint if it isn't installed natively
-  set(ODEINT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ompl/src/external")
-  include_directories(SYSTEM "${ODEINT_INCLUDE_DIR}")
-endif()
-
+# on OS X we need to check whether to use libc++ or libstdc++ with clang++
 if(APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  include(GetPrerequisites)
-  get_prerequisites("${Boost_SYSTEM_LIBRARY}" _libs 0 0 "/" "")
-  set(CXXSTDLIB "")
-  foreach(_lib ${_libs})
-    if(_lib MATCHES "libc\\+\\+")
-      set(CXXSTDLIB "libc++")
-    elseif(_lib MATCHES "libstdc\\+\\+")
-      set(CXXSTDLIB "libstdc++")
+    include(GetPrerequisites)
+    get_prerequisites("${Boost_SYSTEM_LIBRARY}" _libs 0 0 "/" "")
+    set(CXXSTDLIB "")
+    foreach(_lib ${_libs})
+        if(_lib MATCHES "libc\\+\\+")
+            set(CXXSTDLIB "libc++")
+        elseif(_lib MATCHES "libstdc\\+\\+")
+            set(CXXSTDLIB "libstdc++")
+        endif()
+    endforeach()
+    if(CXXSTDLIB)
+        add_definitions(-stdlib=${CXXSTDLIB})
     endif()
-  endforeach()
-  if(CXXSTDLIB)
-    add_definitions(-stdlib=${CXXSTDLIB})
-  endif()
 endif()
 
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/ompl/doc/markdown/FindOMPL.cmake"
-  DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/ompl${OMPL_INSTALL_SUFFIX}"
-  COMPONENT ompl
-  RENAME ompl-config.cmake)
-
-# pthread is sometimes needed, depending on OS / compiler
-find_package(Threads QUIET)
-
+# Eigen is needed for the InformedStateSampler
 find_package(Eigen3 QUIET)
 if (EIGEN3_FOUND)
     set(OMPL_HAVE_EIGEN3 1)
     include_directories("${EIGEN3_INCLUDE_DIR}")
 endif()
 
+# If FLANN is installed, a wrapper for its nearest neighbor data structures can be used
+find_package(flann 1.8.3 QUIET)
+if (FLANN_FOUND)
+    set(OMPL_HAVE_FLANN 1)
+    include_directories("${FLANN_INCLUDE_DIRS}")
+    link_directories(${FLANN_LIBRARY_DIRS})
+endif()
 
 # Barebones compilation only
 set(OMPL_EXTENSION_MORSE 0)
