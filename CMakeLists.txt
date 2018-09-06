@@ -60,6 +60,9 @@ if(Boost_VERSION VERSION_LESS "106300")
     include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/external")
 endif()
 
+# pthread is sometimes needed, depending on OS / compiler
+find_package(Threads QUIET)
+enable_testing()
 
 # on OS X we need to check whether to use libc++ or libstdc++ with clang++
 if(APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -93,6 +96,14 @@ if (FLANN_FOUND)
     link_directories(${FLANN_LIBRARY_DIRS})
 endif()
 
+find_package(GUROBI)
+if (NOT GUROBI_FOUND)
+    message("Gurobi not found. TrajOpt will not work on ROS")
+else()
+    message("Gurobi found")
+    include_directories(${GUROBI_INCLUDE_DIRS})
+endif()
+
 # Barebones compilation only
 set(OMPL_EXTENSION_MORSE 0)
 set(OMPL_EXTENSION_OPENDE 0)
@@ -113,3 +124,4 @@ catkin_package(
 # Also, this allows us to skip compilation of tests, demos,
 # and other superfluous code.
 add_subdirectory(ompl/src)
+add_subdirectory(ompl/tests)
